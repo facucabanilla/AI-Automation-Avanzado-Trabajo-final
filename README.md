@@ -1,4 +1,4 @@
-# Fordcito: asistente de posventa Ford Territory
+# FORDCITO: asistente de posventa Ford Territory
 
 Sistema multi-agente en n8n que atiende por Telegram, con texto o voz, las consultas de posventa de un concesionario: manual del usuario, garantía, plan de mantenimiento y turnos. Cada respuesta técnica del manual es auditada por un segundo agente (AI-as-a-Judge) antes de llegar al cliente.
 
@@ -62,7 +62,7 @@ Cada evaluación se guarda en Google Sheets con `traceId`, `timestamp`, `systemP
 2. Reasigná las credenciales (los archivos solo contienen sus nombres, no claves):
    - Telegram, Google Gemini, Cohere, ElevenLabs, Supabase, Slack, Google Sheets y Google Calendar.
 3. Creá en Supabase las dos tablas con `id` (uuid), `content` (texto), `metadata` (jsonb) y `embedding` (vector de 1024 dimensiones): `document_chunks` y `document_garantia_chunks`, con las funciones `match_documents` y `match_document_garantia_chunks`.
-4. En cada Execute Workflow del Manager, apuntá al Worker importado. En los 4 workflows de negocio, elegí "Fordcito - Alerta de errores" como Error Workflow.
+4. En cada Execute Workflow del Manager, apuntá al Worker importado. En los 4 workflows de negocio, elegí "Asistente Ford (Fordcito) - Alerta de errores" como Error Workflow.
 5. Publicá todos los workflows (el de alertas también, o no se puede seleccionar).
 
 ## Limitaciones conocidas
