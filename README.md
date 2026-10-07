@@ -1,8 +1,36 @@
-# FORDCITO: asistente de posventa Ford Territory
+# Fordcito: asistente de posventa Ford Territory
 
-Sistema multi-agente en n8n que atiende por Telegram (texto y voz) las consultas de posventa de un concesionario: manual del usuario, garantía, plan de mantenimiento y turnos. Cada respuesta técnica del manual es auditada por un segundo agente (AI-as-a-Judge) antes de llegar al cliente.
+Sistema multi-agente en n8n que atiende por Telegram, con texto o voz, las consultas de posventa de un concesionario: manual del usuario, garantía, plan de mantenimiento y turnos. Cada respuesta técnica del manual es auditada por un segundo agente (AI-as-a-Judge) antes de llegar al cliente.
 
 Proyecto Final Integrador, curso AI Automation (Coderhouse). Autor: Facundo Ezequiel Cabanilla.
+
+## En 30 segundos
+
+- **Problema:** un concesionario recibe unas 1.200 consultas por mes y atenderlas a mano lleva unas 100 horas.
+- **Qué hace:** responde en segundos, con datos de la documentación oficial, en el mismo formato en que escribió el cliente (texto o voz).
+- **Cómo lo hace:** un Manager clasifica cada mensaje y lo deriva a un Worker especializado (manual, garantía, mantenimiento y turnos).
+- **Resultado estimado:** unas 81 horas liberadas por mes y un costo de unos USD 147 contra USD 500 de la atención manual, un ahorro cercano a USD 353 mensuales. Son estimaciones con los supuestos detallados en el documento del proyecto.
+
+## Puntos fuertes
+
+- **Auditoría automática:** el Juez puntúa cada respuesta del manual de 1 a 5. Si es 3 se autocorrige hasta 2 veces; si es 2 o menos, la deriva a una persona por Slack.
+- **Humano en el circuito:** los rechazos y la creación de turnos pasan por una aprobación humana antes de llegar al cliente o al calendario.
+- **Trazabilidad:** cada consulta lleva un `traceId` único y queda registrada en Google Sheets.
+- **Resiliencia:** un workflow de alertas avisa por Slack ante cualquier falla, y los nodos de lectura reintentan con espera.
+- **Texto y voz:** transcribe audios y responde en audio cuando el cliente escribió por voz.
+- **Stack freemium:** el prototipo funciona con capas gratuitas de los proveedores.
+
+## Capturas
+
+| | |
+|---|---|
+| Manager | ![Manager](capturas/01-manager.png) |
+| Worker MANUAL (con el Juez) | ![Worker MANUAL](capturas/02-worker-manual.png) |
+| Worker Garantía | ![Garantía](capturas/03-garantia.png) |
+| Worker Turnos y mantenimiento | ![Turnos y mantenimiento](capturas/04-turnos-mantenimiento.png) |
+| Workflow de alertas | ![Alerta de errores](capturas/05-alerta-de-errores.png) |
+| Rechazo derivado a Slack | ![Rechazo en Slack](capturas/06-slack-rechazo.png) |
+| Alerta real de error | ![Alerta en Slack](capturas/07-alerta-error-slack.png) |
 
 ## Arquitectura
 
