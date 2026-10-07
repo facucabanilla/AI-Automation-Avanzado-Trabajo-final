@@ -1,4 +1,4 @@
-# Fordcito: asistente de posventa Ford Territory
+# FORDCITO: asistente de posventa Ford Territory
 
 Sistema multi-agente en n8n que atiende por Telegram (texto y voz) las consultas de posventa de un concesionario: manual del usuario, garantía, plan de mantenimiento y turnos. Cada respuesta técnica del manual es auditada por un segundo agente (AI-as-a-Judge) antes de llegar al cliente.
 
