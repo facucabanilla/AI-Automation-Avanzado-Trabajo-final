@@ -1,0 +1,72 @@
+{
+  "name": "Asistente Ford (Fordcito) - Alerta de errores",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f3bd5ba1-e91e-42ae-ab1d-fb1c4829b9e5",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C7FQ85W06",
+          "mode": "list",
+          "cachedResultName": "fordcito---alerta-de-errores"
+        },
+        "text": "=🚨 ERROR en {{ $json.workflow.name }} Nodo: {{ $json.execution.lastNodeExecuted }} Motivo: {{ $json.execution.error.message }} Ejecución (traceId si es el Manager): {{ $json.execution.id }} {{ $json.execution.url }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "111e5f4e-88c4-41d5-a276-a3eb945278b4",
+      "name": "Enviar alerta de error",
+      "webhookId": "2ee1db14-7db2-439f-91e6-4e9302157b37",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "SBNlBaiNRvktAcMt",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Enviar alerta de error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "fb97f75c-a99c-4df7-8f0e-1032747ce65b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff89eec2015540836f3b78f90a98c6694dc9bb20f2f46af5cce248689fc31201"
+  },
+  "nodeGroups": [],
+  "id": "ys8lFNTKdUFZuhGn",
+  "tags": []
+}

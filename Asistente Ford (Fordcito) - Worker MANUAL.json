@@ -1,0 +1,1015 @@
+{
+  "name": "Asistente Ford (Fordcito) - Worker MANUAL",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "traceID"
+            },
+            {
+              "name": "Consulta"
+            },
+            {
+              "name": "chatID",
+              "type": "any"
+            },
+            {
+              "name": "formato_respuesta"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        576,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "speech",
+        "voice": {
+          "__rl": true,
+          "value": "hpp4J3VqNfWAUOO0d1Us",
+          "mode": "list",
+          "cachedResultName": "Bella - Professional, Bright, Warm"
+        },
+        "text": "={{ $('Buscar respuesta').item.json.output }}",
+        "additionalOptions": {
+          "voiceSettings": "{\n  \"stability\": 0.5,\n  \"similarity_boost\": 0.75,\n  \"style\": 0.1,\n  \"use_speaker_boost\": true,\n  \"speed\": 1\n}"
+        },
+        "requestOptions": {}
+      },
+      "type": "@elevenlabs/n8n-nodes-elevenlabs.elevenLabs",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        736
+      ],
+      "id": "a53e6446-1f94-4bde-9b52-3a17c0ea575e",
+      "name": "Texto -> Audio",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "elevenLabsApi": {
+          "id": "HDYYpeTNgDfQD0zg",
+          "name": "ElevenLabs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Consulta del usuario:\n{{ $('When Executed by Another Workflow').item.json.traceID }}\n{{ $('When Executed by Another Workflow').item.json.Consulta }}\n\nContexto recuperado de la base de datos:\n{{ JSON.stringify($('Buscar respuesta').item.json) }}\n\nRespuesta propuesta por el agente:\n{{ $('Buscar respuesta').item.json.output }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Sos un auditor de calidad estricto para un asistente virtual del manual de Ford Territory.\nTu tarea es evaluar la respuesta del agente comparándola contra la consulta original y el contexto recuperado de la documentación.\n\nPASOS DE EVALUACIÓN:\n1. Identificá cuántas preguntas o temas distintos contiene la consulta del usuario (M).\n2. Contá cuántos respondió correctamente el agente según el contexto recuperado (N). Una parte con \"no figura en la documentación\" cuenta como correcta SOLO si el contexto realmente no contiene esa información.\n3. Si el agente dijo \"No sé\" o \"no figura\" y el contexto SÍ contenía la respuesta, esa parte cuenta como no respondida.\n4. Verificá que cada dato respondido coincida con el contexto (sin inventar).\n\nCRITERIOS (exactitud_factual):\n- 5: Responde todas las partes, con precisión total y solo con datos del contexto. También aplica si la información realmente no figura en el contexto y el agente lo indica correctamente.\n- 4: Responde todas las partes y es factualmente correcto, con leves imperfecciones de formato o tono.\n- 3: Responde correctamente al menos la mitad de las partes (N >= M/2, ej: 2 de 3) sin inventar datos, pero omite o descarta alguna parte cuya respuesta sí estaba en el contexto.\n- 2: Responde menos de la mitad de las partes, o presenta imprecisiones o contradicciones con el contexto.\n- 1: Alucinación grave, información falsa, o descarta con \"No sé\" una consulta cuya respuesta estaba en el contexto.\n\nReglas para estado_veredicto:\n- ACEPTADO: exactitud_factual >= 4\n- CORREGIR: exactitud_factual == 3\n- RECHAZADO: exactitud_factual <= 2\n\nEn critica_justificacion indicá siempre: partes detectadas (M), partes correctas (N) y qué falta.\n\nREGLA DE CONSISTENCIA (OBLIGATORIA):\nPrimero redactá critica_justificacion y terminala siempre con la frase \"Partes: M detectadas, N correctas.\" Recién después fijá exactitud_factual aplicando la tabla: todas las partes = 4-5; N >= M/2 = 3; N < M/2 = 2 o menos. La nota DEBE coincidir con N y M de tu propia frase final. No cambies el conteo dentro de la crítica."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1184,
+        544
+      ],
+      "id": "8ca8371b-7405-4e5f-9b13-e47b998c7ebe",
+      "name": "Juez (AI-as-a-Judge)",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"critica_justificacion\": \"texto\",\n  \"exactitud_factual\": 2,\n  \"estado_veredicto\": \"RECHAZADO\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1328,
+        640
+      ],
+      "id": "f8962ee6-0c2c-47bf-a185-67f137a7c5bd",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1184,
+        640
+      ],
+      "id": "cbfe879d-0918-4e1c-a813-7468166faf7f",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "RGgaBQ26vERZvnXj",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.estado_veredicto }}",
+                    "rightValue": "ACEPTADO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "bb54c5c8-a2c5-4854-95f3-24936eac7e21"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6681cabc-6ce7-479e-8971-968c1a1685d4",
+                    "leftValue": "={{ $json.output.estado_veredicto }}",
+                    "rightValue": "CORREGIR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "984301d7-4f0e-437d-9376-e01f7810711b",
+                    "leftValue": "={{ $json.output.estado_veredicto }}",
+                    "rightValue": "RECHAZADO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": "",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1456,
+        528
+      ],
+      "id": "ca2406ac-46ea-4016-a284-3ccb6471f0c4",
+      "name": "Decisión del Juez"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "sendAndWait",
+        "user": {
+          "__rl": true,
+          "value": "U0BDT6EBPKK",
+          "mode": "list",
+          "cachedResultName": "Facundo Cabanilla (@facu.cabanilla)"
+        },
+        "message": "=⚠️ RESPUESTA RECHAZADA POR EL JUEZ ⚠️ - Usuario: {{ $('When Executed by Another Workflow').item.json.chatID }} - Consulta {{ $('When Executed by Another Workflow').item.json.Consulta }} - Respuesta Agente: {{ $('Buscar respuesta').item.json.output }} - Nota:  {{ $('Juez (AI-as-a-Judge)').item.json.output.exactitud_factual }}/5 - Motivo: {{ $('Juez (AI-as-a-Judge)').item.json.output.critica_justificacion }}",
+        "responseType": "freeText",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1680,
+        864
+      ],
+      "id": "e03138b1-2778-4e99-825c-988cf18df313",
+      "name": "RECHAZADO: Necesita revisión humana",
+      "webhookId": "3253e9f2-35e4-44b1-94a7-346a610d3e41",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "SBNlBaiNRvktAcMt",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "93adee50-69e7-44c1-a218-14f686f1fc43",
+              "leftValue": "={{ $json.intentos }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        208
+      ],
+      "id": "61d4bac4-68b5-4200-86d3-6791084fe5e8",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3cfc1ae5-a3dc-4872-987e-15991d755fa8",
+              "name": "critica",
+              "value": "={{ $('Juez (AI-as-a-Judge)').item.json.output.critica_justificacion }}",
+              "type": "string"
+            },
+            {
+              "id": "e5522bac-496e-41e0-b206-5799825965a9",
+              "name": "intentos",
+              "value": "={{ $runIndex + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1616,
+        208
+      ],
+      "id": "345cfe24-0a14-491d-b504-6fe6f22637a2",
+      "name": "Mandar a corregir"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        832,
+        640
+      ],
+      "id": "c0e6447c-9b6c-4492-b457-e81f4e57aa3c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "RGgaBQ26vERZvnXj",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Consultá esta herramienta para buscar cualquier dato del manual de la Ford Territory. Úsala obligatoriamente ante preguntas sobre lámparas, luces, especificaciones técnicas, presiones, neumáticos y funciones.\n\nEjemplos de sinónimos para la segunda búsqueda:\n- presión de neumáticos → \"presión de inflado recomendada\", \"especificaciones de neumáticos PSI\"\n- capacidad del tanque → \"capacidad de combustible\", \"especificaciones de capacidades litros\"\n- luces bajas → \"faros de cruce\", \"especificaciones de lámparas\"\nSi la primera búsqueda devuelve solo información sobre alertas o sistemas (como TPMS) y no un valor numérico, repetí con el sinónimo.",
+        "tableName": {
+          "__rl": true,
+          "value": "document_chunks",
+          "mode": "list",
+          "cachedResultName": "document_chunks"
+        },
+        "topK": 20,
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        768
+      ],
+      "id": "c7e9b614-1529-4903-bd5f-70596c568bbd",
+      "name": "Consulta a Supabase",
+      "credentials": {
+        "supabaseApi": {
+          "id": "D498nXj3Zw7clp4f",
+          "name": "Supabase - Manual Territory"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "embed-english-v3.0"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsCohere",
+      "typeVersion": 1,
+      "position": [
+        896,
+        848
+      ],
+      "id": "9f05eba8-9b1e-41b1-a716-fea1c88ead90",
+      "name": "Embeddings Cohere",
+      "credentials": {
+        "cohereApi": {
+          "id": "HwocVVLK1KbGk44U",
+          "name": "Cohere - Facundo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.Consulta }}\n\n{{ $('Mandar a corregir').isExecuted ? \"NOTA DEL AUDITOR PARA CORREGIR: \" + $('Mandar a corregir').item.json.critica : \"\" }}",
+        "options": {
+          "systemMessage": "REGLAS DE BÚSQUEDA EN SUPABASE (OBLIGATORIAS):\n1. Antes de responder cualquier consulta sobre especificaciones técnicas, piezas, funciones, botones, presiones o componentes del vehículo, DEBES consultar la herramienta Supabase Vector Store.\n2. DESCOMPOSICIÓN: Si la consulta contiene más de una pregunta o tema, separala en sub-preguntas y hacé UNA búsqueda independiente por cada una. Nunca mezcles varios temas en una sola búsqueda.\n3. Al generar cada búsqueda:\n   - Usá frases cortas y descriptivas sobre un único tema (ej: \"presión de neumáticos\", \"faros de cruce\", \"capacidad de aceite del motor\").\n   - NUNCA incluyas números de página, la palabra \"página\" ni listas de palabras clave sueltas.\n4. Si una búsqueda no devuelve información, hacé una segunda con sinónimos técnicos (ej: si \"luces bajas\" falla, probá \"faros de cruce\"). Esto se aplica a cada sub-pregunta por separado.\n5. Si la información recuperada incluye datos tabulares o listas clave-valor, interpretá los encabezados y datos correspondientes para responder con claridad.\n\nREGLAS OBLIGATORIAS DE AUDITORÍA Y OBJETIVIDAD:\n(sin cambios)\n\nFORMATO Y LIMITACIÓN DE RESPUESTA:\n- Respondé de forma directa, amable y bien estructurada.\n- Respondé CADA sub-pregunta por separado. Si encontraste información de una parte y no de otra, respondé la que sí figura y, para la que no, indicá: \"Sobre [tema]: no figura en la documentación disponible.\"\n- Usá únicamente el texto \"No sé: la información solicitada no figura en la documentación disponible.\" cuando NINGUNA de las partes de la consulta se encuentre en la documentación.\n- Longitud máxima: 200 caracteres para consultas de un solo tema; hasta 80 caracteres si la consulta tiene varias partes.",
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        832,
+        544
+      ],
+      "id": "6d7832aa-8050-46f7-9771-a54b5725b767",
+      "name": "Buscar respuesta",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('When Executed by Another Workflow').item.json.formato_respuesta }}",
+                    "rightValue": "TEXTO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6c96cd8d-fe47-435a-9f1a-89d3c5027ce5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TEXTO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c196e502-87cb-4036-b8db-621260b7418d",
+                    "leftValue": "={{ $('When Executed by Another Workflow').item.json.formato_respuesta }}",
+                    "rightValue": "AUDIO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "AUDIO"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1760,
+        592
+      ],
+      "id": "2e11c036-0aee-49a5-a509-7271ca50099b",
+      "name": "formato_respuesta"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('When Executed by Another Workflow').item.json.chatID }}",
+        "text": "={{ $('Buscar respuesta').item.json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        576
+      ],
+      "id": "be8cde85-9183-455a-b4d3-3f7b62d805c2",
+      "name": "Respuesta al cliente - Texto",
+      "webhookId": "63cfc7c1-460a-420c-8239-db8349b368c8",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAudio",
+        "chatId": "={{ $('When Executed by Another Workflow').item.json.chatID }}",
+        "binaryData": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2160,
+        736
+      ],
+      "id": "90ae4cd8-28bc-45bb-a4b8-2b3910c10ba5",
+      "name": "Respuesta al cliente - Audio",
+      "webhookId": "95a4ddd8-c445-4505-a81f-5f5efc78498b",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1psJ99dXF6NB2WKLKofMMJlxLTu9LuEhfnPU7uUJ8Kj8",
+          "mode": "list",
+          "cachedResultName": "Checkpoint_Modulo8_Cabanilla_Facundo",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1psJ99dXF6NB2WKLKofMMJlxLTu9LuEhfnPU7uUJ8Kj8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1psJ99dXF6NB2WKLKofMMJlxLTu9LuEhfnPU7uUJ8Kj8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Veredicto Juez": "={{ $('Juez (AI-as-a-Judge)').item.json.output.estado_veredicto }}",
+            "Query Usuario": "={{ $('When Executed by Another Workflow').item.json.Consulta }}",
+            "traceID": "={{ $('When Executed by Another Workflow').item.json.traceID }}",
+            "toolOutput": "={{ $('Buscar respuesta').item.json.output }}",
+            "systemPrompSnapshot": "Asistente Ford - Worker MANUAL",
+            "Log_JSON": "={{ JSON.stringify({\n  traceId: $('When Executed by Another Workflow').item.json.traceID,\n  timestamp: $now.setZone('America/Argentina/Buenos_Aires').toFormat('yyyy-MM-dd HH:mm:ss'),\n  nodeName: 'AI-as-a-Judge',\n  systemPromptSnapshot: 'Asistente_Territory_v1.0',\n  chatId: $('When Executed by Another Workflow').item.json.chatID,\n  consulta: $('When Executed by Another Workflow').item.json.Consulta,\n  toolOutput: $('Buscar respuesta').item.json.output,\n  exactitud_factual: $('Juez (AI-as-a-Judge)').item.json.output.exactitud_factual,\n  estado_veredicto: $('Juez (AI-as-a-Judge)').item.json.output.estado_veredicto,\n  critica_justificacion: $('Juez (AI-as-a-Judge)').item.json.output.critica_justificacion\n}) }}",
+            "exactitud_factual": "={{ $('Juez (AI-as-a-Judge)').item.json.output.exactitud_factual }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "traceID",
+              "displayName": "traceID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Query Usuario",
+              "displayName": "Query Usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "toolOutput",
+              "displayName": "toolOutput",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Veredicto Juez",
+              "displayName": "Veredicto Juez",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "exactitud_factual",
+              "displayName": "exactitud_factual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "systemPrompSnapshot",
+              "displayName": "systemPrompSnapshot",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Log_JSON",
+              "displayName": "Log_JSON",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1776,
+        208
+      ],
+      "id": "6a99bf00-8705-4f58-b018-0e4bc1c7f018",
+      "name": "Log Juez",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "etKDNt0oeL4B9wLB",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1psJ99dXF6NB2WKLKofMMJlxLTu9LuEhfnPU7uUJ8Kj8",
+          "mode": "list",
+          "cachedResultName": "Checkpoint_Modulo8_Cabanilla_Facundo",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1psJ99dXF6NB2WKLKofMMJlxLTu9LuEhfnPU7uUJ8Kj8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1psJ99dXF6NB2WKLKofMMJlxLTu9LuEhfnPU7uUJ8Kj8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Query Usuario": "={{ $('When Executed by Another Workflow').item.json.Consulta }}",
+            "Veredicto Juez": "={{ $('Juez (AI-as-a-Judge)').item.json.output.estado_veredicto }}",
+            "traceID": "={{ $('When Executed by Another Workflow').item.json.traceID }}",
+            "Log_JSON": "={{ JSON.stringify({\n  traceId: $('When Executed by Another Workflow').item.json.traceID,\n  timestamp: $now.setZone('America/Argentina/Buenos_Aires').toFormat('yyyy-MM-dd HH:mm:ss'),\n  nodeName: 'AI-as-a-Judge',\n  systemPromptSnapshot: 'Asistente_Territory_v1.0',\n  chatId: $('When Executed by Another Workflow').item.json.chatID,\n  consulta: $('When Executed by Another Workflow').item.json.Consulta,\n  toolOutput: $('Buscar respuesta').item.json.output,\n  exactitud_factual: $('Juez (AI-as-a-Judge)').item.json.output.exactitud_factual,\n  estado_veredicto: $('Juez (AI-as-a-Judge)').item.json.output.estado_veredicto,\n  critica_justificacion: $('Juez (AI-as-a-Judge)').item.json.output.critica_justificacion\n}) }}",
+            "toolOutput": "={{ $('Buscar respuesta').item.json.output }}",
+            "systemPrompSnapshot": "Asistente_Territory_v1.0",
+            "timestamp": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}",
+            "exactitud_factual": "={{ $('Juez (AI-as-a-Judge)').item.json.output.exactitud_factual }}"
+          },
+          "matchingColumns": [
+            "Fecha y Hora"
+          ],
+          "schema": [
+            {
+              "id": "traceID",
+              "displayName": "traceID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Query Usuario",
+              "displayName": "Query Usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "toolOutput",
+              "displayName": "toolOutput",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Veredicto Juez",
+              "displayName": "Veredicto Juez",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "exactitud_factual",
+              "displayName": "exactitud_factual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "systemPrompSnapshot",
+              "displayName": "systemPrompSnapshot",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Log_JSON",
+              "displayName": "Log_JSON",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2000,
+        432
+      ],
+      "id": "8f55ff00-d8f9-4d4e-ba9f-a01e14de6a57",
+      "name": "Log - Juez Final",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "etKDNt0oeL4B9wLB",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('When Executed by Another Workflow').first().json.chatID }}",
+        "text": "={{ $json.data.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1856,
+        864
+      ],
+      "id": "5bcefccf-c798-4508-9eea-0b9aec939fb0",
+      "name": "Respuesta cliente",
+      "webhookId": "f6b55434-928b-4c29-9ab7-7cf3a5366d1d",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto -> Audio": {
+      "main": [
+        [
+          {
+            "node": "Respuesta al cliente - Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juez (AI-as-a-Judge)": {
+      "main": [
+        [
+          {
+            "node": "Decisión del Juez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Juez (AI-as-a-Judge)",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Juez (AI-as-a-Judge)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decisión del Juez": {
+      "main": [
+        [
+          {
+            "node": "Log - Juez Final",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "formato_respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mandar a corregir",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RECHAZADO: Necesita revisión humana",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log - Juez Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RECHAZADO: Necesita revisión humana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mandar a corregir": {
+      "main": [
+        [
+          {
+            "node": "Log Juez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta a Supabase": {
+      "ai_tool": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Cohere": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Consulta a Supabase",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar respuesta": {
+      "main": [
+        [
+          {
+            "node": "Juez (AI-as-a-Judge)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formato_respuesta": {
+      "main": [
+        [
+          {
+            "node": "Respuesta al cliente - Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Texto -> Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RECHAZADO: Necesita revisión humana": {
+      "main": [
+        [
+          {
+            "node": "Respuesta cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Juez": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "ys8lFNTKdUFZuhGn",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "957bba2a-d027-41b6-b20c-74f2a4121a1f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff89eec2015540836f3b78f90a98c6694dc9bb20f2f46af5cce248689fc31201"
+  },
+  "nodeGroups": [],
+  "id": "UwekoYTZbDl6COsk",
+  "tags": []
+}

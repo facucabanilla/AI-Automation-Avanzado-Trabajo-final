@@ -1,0 +1,373 @@
+{
+  "name": "Asistente Ford (Fordcito) - Garantía",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "traceID"
+            },
+            {
+              "name": "Consulta"
+            },
+            {
+              "name": "chatID",
+              "type": "any"
+            },
+            {
+              "name": "formato_respuesta"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        688,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.Consulta }}",
+        "options": {
+          "systemMessage": "Eres un asistente automatizado experto en Postventa de Ford Argentina, especializado en el modelo Ford Territory. Tu objetivo es resolver dudas de clientes sobre los servicios de mantenimiento, turnos y garantías basándote estrictamente en el manual provisto.\n\n[REGLA CRÍTICA DE PROCESAMIENTO DE TABLAS]:\nEl Programa de Mantenimiento está fragmentado en páginas consecutivas dentro del archivo Markdown:\n1. Las páginas con texto descriptivo (ej. Pág. 20, 22, 24) contienen las tareas (filas).\n2. Las páginas inmediatamente posteriores (ej. Pág. 21, 23, 25) contienen la matriz de puntos (•) y frecuencias por kilometraje/años en columnas.\nPara responder qué se hace en cada kilometraje, debes mapear de forma exacta la posición de la fila de la descripción con la posición de la fila de los puntos. No asumas correlaciones sin hacer este cruce estricto renglón por renglón.\n\n[REGLAS DE NEGOCIO]:\n- Si el cliente menciona condiciones de \"Servicio Severo\" (barro, caminos polvorientos, tramos cortos, etc.), recuerda aplicar las frecuencias reducidas indicadas en las notas al pie (ej. filtro de aire cada 10.000 km en lugar de 30.000 km).\n- Entrega respuestas cortas, profesionales, empáticas y estructuradas en viñetas (bullet points) para que el cliente pueda leerlas fácilmente desde su celular.\n- Si el usuario pregunta por un mantenimiento que no existe o el chasis no corresponde, solicita amablemente la aclaración.\n\n\nFORMATO Y LIMITACIÓN DE RESPUESTA:\n- Responde de forma directa, amable y bien estructurada.\n- Si tras consultar la herramienta la información no se encuentra disponible en la documentación cargada, debés responder textualmente: \"No sé: la información solicitada no figura en la documentación disponible.\"\n- Todas tus respuestas escritas deben tener una longitud máxima de 200 caracteres."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        864,
+        224
+      ],
+      "id": "643f8b8b-b045-4433-add5-0e30570cd5a3",
+      "name": "Buscar respuesta",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "modelName": "embed-english-v3.0"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsCohere",
+      "typeVersion": 1,
+      "position": [
+        928,
+        528
+      ],
+      "id": "8627dac1-a82f-4542-8c55-1f76fecf54a7",
+      "name": "Embeddings Cohere",
+      "credentials": {
+        "cohereApi": {
+          "id": "HwocVVLK1KbGk44U",
+          "name": "Cohere - Facundo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "[USO DE HERRAMIENTA]:\n   - Para CUALQUIER pregunta del usuario, SIEMPRE debés llamar primero a la herramienta \"Consulta a Supabase\". Nunca respondas con tu conocimiento general.\n   - Formulá la consulta de forma completa (ej: \"Ford Territory plazo de garantía años kilómetros\"), aunque el usuario escriba corto.\n   - Solo respondé \"No sé: ...\" si llamaste a la herramienta y no devolvió información relevante.",
+        "tableName": {
+          "__rl": true,
+          "value": "document_garantia_chunks",
+          "mode": "list",
+          "cachedResultName": "document_garantia_chunks"
+        },
+        "topK": 20,
+        "options": {
+          "queryName": "match_document_garantia_chunks"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        928,
+        448
+      ],
+      "id": "03c3a702-0452-4f31-8540-4501a6fa6879",
+      "name": "Consulta a Supabase",
+      "notesInFlow": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "D498nXj3Zw7clp4f",
+          "name": "Supabase - Manual Territory"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        864,
+        320
+      ],
+      "id": "56909af3-9b03-4829-9fb4-8839e17d3eb0",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "RGgaBQ26vERZvnXj",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "speech",
+        "voice": {
+          "__rl": true,
+          "value": "hpp4J3VqNfWAUOO0d1Us",
+          "mode": "list",
+          "cachedResultName": "Bella - Professional, Bright, Warm"
+        },
+        "text": "={{ $('Buscar respuesta').item.json.output }}",
+        "additionalOptions": {
+          "voiceSettings": "{\n  \"stability\": 0.5,\n  \"similarity_boost\": 0.75,\n  \"style\": 0.1,\n  \"use_speaker_boost\": true,\n  \"speed\": 1\n}"
+        },
+        "requestOptions": {}
+      },
+      "type": "@elevenlabs/n8n-nodes-elevenlabs.elevenLabs",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        240
+      ],
+      "id": "f2dd5560-b47e-4e89-bc6d-93fb41981431",
+      "name": "Texto -> Audio",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "elevenLabsApi": {
+          "id": "HDYYpeTNgDfQD0zg",
+          "name": "ElevenLabs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('When Executed by Another Workflow').item.json.formato_respuesta }}",
+                    "rightValue": "TEXTO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6c96cd8d-fe47-435a-9f1a-89d3c5027ce5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TEXTO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c196e502-87cb-4036-b8db-621260b7418d",
+                    "leftValue": "={{ $('When Executed by Another Workflow').item.json.formato_respuesta }}",
+                    "rightValue": "AUDIO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "AUDIO"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1184,
+        224
+      ],
+      "id": "cc8e8d5b-ca53-47b9-a394-e0f19b6000b7",
+      "name": "formato_respuesta"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('When Executed by Another Workflow').item.json.chatID }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        64
+      ],
+      "id": "61ccde2e-2766-4b71-b2c8-75d818718246",
+      "name": "Respuesta al cliente - Texto",
+      "webhookId": "63cfc7c1-460a-420c-8239-db8349b368c8",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAudio",
+        "chatId": "={{ $('When Executed by Another Workflow').item.json.chatID }}",
+        "binaryData": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        240
+      ],
+      "id": "2cca6a1a-ade1-4744-a09d-945207b340fc",
+      "name": "Respuesta al cliente - Audio",
+      "webhookId": "95a4ddd8-c445-4505-a81f-5f5efc78498b",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar respuesta": {
+      "main": [
+        [
+          {
+            "node": "formato_respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Cohere": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Consulta a Supabase",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta a Supabase": {
+      "ai_tool": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto -> Audio": {
+      "main": [
+        [
+          {
+            "node": "Respuesta al cliente - Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formato_respuesta": {
+      "main": [
+        [
+          {
+            "node": "Respuesta al cliente - Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Texto -> Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "ys8lFNTKdUFZuhGn",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "19568887-cec5-4b8a-9374-4a3d51a32dc9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff89eec2015540836f3b78f90a98c6694dc9bb20f2f46af5cce248689fc31201"
+  },
+  "nodeGroups": [],
+  "id": "3eaBR2xYiAtTAsz7",
+  "tags": []
+}

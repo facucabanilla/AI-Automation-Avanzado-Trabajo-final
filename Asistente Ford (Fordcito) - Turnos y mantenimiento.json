@@ -1,0 +1,1024 @@
+{
+  "name": "Asistente Ford (Fordcito) - Turnos y mantenimiento",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "traceID"
+            },
+            {
+              "name": "Consulta"
+            },
+            {
+              "name": "chatID",
+              "type": "any"
+            },
+            {
+              "name": "formato_respuesta",
+              "type": "any"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        256,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.Consulta }}",
+        "options": {
+          "systemMessage": "Sos el orquestador del centro de atención al cliente de Ford. Tu única función es analizar el mensaje del usuario y determinar si se refiere a una consulta general de mantenimiento o a la gestión de turnos. \n\nRespondé ÚNICAMENTE con una de las siguientes 2 palabras exactas, en mayúsculas, sin comillas, sin formato JSON, sin signos de puntuación y sin texto adicional:\n\nMANTENIMIENTO\nTURNOS\n\nCriterios de clasificación:\n- MANTENIMIENTO: Consultas sobre el manual técnico, especificaciones del vehículo, plazos y coberturas de garantía, condiciones de validez, o qué incluye el service programado.\n- TURNOS: Mensajes donde el usuario solicita una cita en el taller, quiere agendar el service, consulta la disponibilidad de agenda o pide costos de mano de obra/turnos disponibles.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        384,
+        352
+      ],
+      "id": "a99cfb99-1051-4484-9ac5-d5fda28ce15a",
+      "name": "AI Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('When Executed by Another Workflow').item.json.Consulta }}\n",
+        "options": {
+          "systemMessage": "[INSTRUCCIÓN CRÍTICA DE OPERACIÓN]:\nEres un motor de extracción de datos técnico y preciso. El usuario ya ha sido saludado previamente por el sistema principal. Tu única tarea es tomar la consulta recibida, ejecutar INMEDIATAMENTE la herramienta \"Consulta a Supabase\" para extraer la información técnica del manual, y devolver el resultado de forma directa. \n\nPROHIBICIÓN CLAVE: No saludes, no des la bienvenida, no digas \"¡Hola!\", ni uses ninguna frase de cortesía inicial. Si el usuario te pregunta por un kilometraje o servicio, invoca la herramienta de Supabase de inmediato sin mediar palabra previa.\n\n[CONTEXTO]:\nEres un asistente automatizado experto en Postventa de Ford Argentina, especializado en el modelo Ford Territory. Tu objetivo es resolver dudas de clientes sobre los servicios de mantenimiento, turnos y garantías basándote estrictamente en el manual provisto a través de tu herramienta.\n\n[REGLA CRÍTICA DE PROCESAMIENTO DE TABLAS]:\nEl Programa de Mantenimiento está fragmentado en páginas consecutivas dentro del archivo Markdown:\n1. Las páginas con texto descriptivo (ej. Pág. 20, 22, 24) contienen las tareas (filas).\n2. Las páginas inmediatamente posteriores (ej. Pág. 21, 23, 25) contienen la matriz de puntos (•) y frecuencias por kilometraje/años en columnas.\nPara responder qué se hace en cada kilometraje, debes mapear de forma exacta la posición de la fila de la descripción con la posición de la fila de los puntos. No asumas correlaciones sin hacer este cruce estricto renglón por renglón.\n\n[REGLAS DE NEGOCIO]:\n- Si el cliente menciona condiciones de \"Servicio Severo\" (barro, caminos polvorientos, tramos cortos, etc.), recuerda aplicar las frecuencias reducidas indicadas en las notas al pie (ej. filtro de aire cada 10.000 km en lugar de 30.000 km).\n- Entrega respuestas cortas, profesionales, empáticas y estructuradas en viñetas (bullet points) para que el cliente pueda leerlas fácilmente desde su celular.\n- Si el usuario pregunta por un mantenimiento que no existe o el chasis no corresponde, solicita amablemente la aclaración.\n\n[FORMATO Y LIMITACIÓN DE RESPUESTA]:\n- Responde de forma directa, amable y bien estructurada.\n- Si tras consultar la herramienta la información no se encuentra disponible en la documentación cargada, debés responder textualmente: \"No sé: la información solicitada no figura en la documentación disponible.\"\n- Todas tus respuestas escritas deben tener una longitud máxima de 500 caracteres.\n- Al finalizar toda la información pregunta si desea gestionar el turno. \n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        800,
+        512
+      ],
+      "id": "1061ae9c-933c-4a9e-a793-9fd5713ecf2e",
+      "name": "Buscar respuesta",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "modelName": "embed-english-v3.0"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsCohere",
+      "typeVersion": 1,
+      "position": [
+        864,
+        816
+      ],
+      "id": "a286ac28-2d3a-4089-a3fd-494d75e3e2bf",
+      "name": "Embeddings Cohere",
+      "credentials": {
+        "cohereApi": {
+          "id": "HwocVVLK1KbGk44U",
+          "name": "Cohere - Facundo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Utiliza esta herramienta para buscar e informarte sobre la garantía, plazos de cobertura, mantenimiento preventivo, revisiones y asistencia del vehículo Ford Territory.\n",
+        "tableName": {
+          "__rl": true,
+          "value": "document_garantia_chunks",
+          "mode": "list",
+          "cachedResultName": "document_garantia_chunks"
+        },
+        "topK": 20,
+        "options": {
+          "queryName": "match_document_garantia_chunks"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        736
+      ],
+      "id": "1c10b8ac-d3e1-455a-b651-896e30bee0ab",
+      "name": "Consulta a Supabase",
+      "notesInFlow": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "D498nXj3Zw7clp4f",
+          "name": "Supabase - Manual Territory"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        608
+      ],
+      "id": "d7b1a46b-5e48-4f2e-829a-5726b944c1fc",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "RGgaBQ26vERZvnXj",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "speech",
+        "voice": {
+          "__rl": true,
+          "value": "hpp4J3VqNfWAUOO0d1Us",
+          "mode": "list",
+          "cachedResultName": "Bella - Professional, Bright, Warm"
+        },
+        "text": "={{ $('Buscar respuesta').item.json.output }}",
+        "additionalOptions": {
+          "voiceSettings": "{\n  \"stability\": 0.5,\n  \"similarity_boost\": 0.75,\n  \"style\": 0.1,\n  \"use_speaker_boost\": true,\n  \"speed\": 1\n}"
+        },
+        "requestOptions": {}
+      },
+      "type": "@elevenlabs/n8n-nodes-elevenlabs.elevenLabs",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        672
+      ],
+      "id": "5ca03aaf-c3d6-4ab9-98e2-72cfb718feeb",
+      "name": "Texto -> Audio",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "elevenLabsApi": {
+          "id": "HDYYpeTNgDfQD0zg",
+          "name": "ElevenLabs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        384,
+        464
+      ],
+      "id": "ecbe9f9d-e13d-45d9-9fc9-9229c471a40f",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "RGgaBQ26vERZvnXj",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        240
+      ],
+      "id": "dbbe4e7d-dad8-4486-a7ae-1ff99abae9ce",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "RGgaBQ26vERZvnXj",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"opciones_disponibles\": [\n    {\n      \"letra\": \"A\",\n      \"fecha\": \"07/10/2026\",\n      \"horario\": \"De 08:00 AM a 10:00 AM\"\n    }\n  ]\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1248,
+        240
+      ],
+      "id": "c78e5363-236d-4016-8c44-a4f41658085e",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('When Executed by Another Workflow').item.json.chatID }}",
+        "text": "=Felicidades! \n\nSu turno has sido aprobado. \n\nRecuerde presentarse el día {{ $('Opciones disponibles').item.json.data['Opción elegida'] }}, 10 minutos antes por recepción.\n\nQue tenga un hermoso día!",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2256,
+        48
+      ],
+      "id": "30477fa0-fb40-4d2a-b55f-d3d49bfc8d77",
+      "name": "Turno aprobado",
+      "webhookId": "b909889c-92ab-40f3-9eda-de41fd1cafc7",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('When Executed by Another Workflow').item.json.chatID }}",
+        "text": "=Estamos teniendo problemas para agendar su turno. \n\nEn breves un agente del servicio técnico se estará comunicando. \n\nMuchas gracias. ",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2256,
+        208
+      ],
+      "id": "31b86adf-2eaf-45b7-a583-a62d41a2679b",
+      "name": "Turno desaprobado - Personal se contacta",
+      "webhookId": "ff8b7c4b-9561-4e3a-bd3e-46125e8d4d7e",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "46ba92a6-892e-4e27-b1c9-8a5539dbc228",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2096,
+        144
+      ],
+      "id": "0e564098-1b04-48c4-b892-89f1c9efe8f3",
+      "name": "Turno Aprobado/Desaprobado"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C7A6BP9TK",
+          "mode": "list",
+          "cachedResultName": "servicio_tecnico"
+        },
+        "message": "=El cliente {{ $('When Executed by Another Workflow').item.json.chatID }}\n\nSe ha comunicado para solicitar un turno para su próximo mantenimiento. \n\nHa optado por el turno {{ $('Opciones disponibles').item.json.data['Opción elegida'] }}\n\nFavor de confirmar el turno. En caso de cancelar el turno, comunicarse con el cliente para reprogramar.",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Turno aprobado",
+            "disapproveLabel": "Me voy a comunicar con el cliente"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1904,
+        144
+      ],
+      "id": "658865b6-6d43-45ad-8ef6-f03089383513",
+      "name": "Confirmación del turno: Agente",
+      "webhookId": "f2089aff-1d8b-4a05-bb30-799743e81b53",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "SBNlBaiNRvktAcMt",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "006b5057-2c1f-4b35-90e3-25357449c8fe",
+              "name": "Opcion_A",
+              "value": "={{ $json.output.opciones_disponibles[0].fecha.split('-').reverse().join('/') }} | {{ $json.output.opciones_disponibles[0].horario }}",
+              "type": "string"
+            },
+            {
+              "id": "f723e3be-dea1-4b2b-9ca9-13f4a89973b5",
+              "name": "Opcion_B",
+              "value": "={{ $json.output.opciones_disponibles[1].fecha.split('-').reverse().join('/') }} | {{ $json.output.opciones_disponibles[1].horario }}\n",
+              "type": "string"
+            },
+            {
+              "id": "cdc75760-2619-4c2a-8676-58d6738ae9f8",
+              "name": "Opcion_C",
+              "value": "={{ $json.output.opciones_disponibles[2].fecha.split('-').reverse().join('/') }} | {{ $json.output.opciones_disponibles[2].horario }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1376,
+        144
+      ],
+      "id": "be8ca1bf-2fca-46d8-9206-da012853872d",
+      "name": "Turnos disponibles"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "chatId": "={{ $('When Executed by Another Workflow').item.json.chatID }}",
+        "message": "=Estos son los turnos que tenemos disponibles, por favor seleccionar el que más le convenga, y aguarde confirmación.",
+        "responseType": "customForm",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Opción elegida",
+              "fieldType": "dropdown",
+              "defaultValue": "Turnos disponibles",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "={{ $json.Opcion_A }}"
+                  },
+                  {
+                    "option": "={{ $json.Opcion_B }}"
+                  },
+                  {
+                    "option": "={{ $json.Opcion_C }}"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1552,
+        144
+      ],
+      "id": "bdacc9c7-b7d6-41a8-b852-6423984f133c",
+      "name": "Opciones disponibles",
+      "webhookId": "8c6a330a-21cc-47ec-a5fa-3110d098ee09",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('When Executed by Another Workflow').item.json.chatID }}",
+        "text": "=Perfecto, en breves se comunicarán para confirmar el turno.\n\nMuchas gracias ",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1728,
+        144
+      ],
+      "id": "e246003c-bf33-40c0-8e86-05b18c7cf5dc",
+      "name": "Selección de turno",
+      "webhookId": "8862826f-70d7-4e65-afdb-d3de5c3a4b3d",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.turnos_agendados }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Actúa como un asistente de programación de mantenimiento de alta precisión. Tu tarea es analizar la lista de eventos ocupados en el calendario que te proporciono y encontrar TODOS los espacios libres disponibles de exactamente 2 horas de duración.\n\nReglas de negocio obligatorias:\n1. Horario operativo: Solo puedes buscar espacios dentro de los siguientes rangos horarios:\n   - Mañana: De 8:00 AM a 12:00 PM.\n   - Tarde: De 1:00 PM a 5:00 PM.\n2. Flexibilidad horaria: Los turnos de 2 horas no necesitan empezar en una hora en punto. Por ejemplo, si el rango de 1:20 PM a 3:20 PM está libre, es totalmente válido.\n3. Almuerzo: El bloque de 12:00 PM a 1:00 PM está estrictamente reservado y no se puede usar para mantenimiento.\n4. Solo ofrece 3 opciones de turnos. Los más próximos.\n\nFormato de salida requerido:\nEntrega EXCLUSIVAMENTE una lista con las opciones encontradas utilizando letras secuenciales (A, B, C...) y únicamente el día y la hora de inicio y fin. No agregues introducciones, explicaciones, textos adicionales ni saludos.\n\nEjemplo estricto de estructura de salida:\nOpciones disponibles para tu turno de mantenimiento:\nA) Día/Mes/Año - De 00:00 AM/PM a 00:00 AM/PM\nB) Día/Mes/Año - De 00:00 AM/PM a 00:00 AM/PM\nC) Día/Mes/Año - De 00:00 AM/PM a 00:00 AM/PM\n\nEjemplo de formato:\n- [Fecha]: De [Hora Inicio] a [Hora Fin]\n- [Fecha]: De [Hora Inicio] a [Hora Fin]\n\nDatos del calendario (eventos ocupados):\n{{ $json.turnos_agendados }}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1104,
+        144
+      ],
+      "id": "9f5b4834-656c-49d3-9c58-343a956c544c",
+      "name": "Turnero",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "facu.cabanilla@gmail.com",
+          "mode": "list",
+          "cachedResultName": "facu.cabanilla@gmail.com"
+        },
+        "returnAll": true,
+        "timeMax": "={{ $now.plus({ week: 2 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        144
+      ],
+      "id": "f495a500-bdc4-47e7-b240-351f3510ba44",
+      "name": "Turnos disponibles - Calendario",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tTDabBS4Sfg9RMLk",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "facu.cabanilla@gmail.com",
+          "mode": "list",
+          "cachedResultName": "facu.cabanilla@gmail.com"
+        },
+        "start": "={{ $json.start }}",
+        "end": "={{ $json.end }}",
+        "additionalFields": {
+          "summary": "=Turno mantenimiento para  {{ $('When Executed by Another Workflow').item.json.chatID }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        2512,
+        48
+      ],
+      "id": "b38d8f6f-8687-4c14-ae9d-eb40efcbe6a2",
+      "name": "Turno agregado",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tTDabBS4Sfg9RMLk",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.formato_respuesta }}",
+                    "rightValue": "TEXTO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3cce5fff-989c-4632-a37e-849e2ee03ede"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TEXTO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "2c9d6045-71c6-4933-8f98-dd36c99ede3e",
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.formato_respuesta }}",
+                    "rightValue": "AUDIO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "AUDIO"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1104,
+        512
+      ],
+      "id": "470faf6c-0abb-4a38-8fa8-16f2a62d19c4",
+      "name": "Audio/Texto"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('When Executed by Another Workflow').first().json.chatID }}",
+        "text": "={{ $('Buscar respuesta').item.json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1296,
+        464
+      ],
+      "id": "19abf042-eda6-4e76-83b5-dbcc5d2ace26",
+      "name": "Respuesta al cliente - Texto",
+      "webhookId": "63cfc7c1-460a-420c-8239-db8349b368c8",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAudio",
+        "chatId": "={{ $('When Executed by Another Workflow').first().json.chatID }}",
+        "binaryData": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        672
+      ],
+      "id": "f97a3631-db6b-4e9a-b9ab-ab717b8f3e7b",
+      "name": "Respuesta al cliente - Audio",
+      "webhookId": "95a4ddd8-c445-4505-a81f-5f5efc78498b",
+      "credentials": {
+        "telegramApi": {
+          "id": "SFRn0X5eHg8UVtha",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('AI Agent').item.json.output }}",
+                    "rightValue": "TURNOS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5f79818e-2f88-4f36-81a2-e2bb40b86d3e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Turnos"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4d7294d2-e5f1-470c-accb-3321cb68986b",
+                    "leftValue": "={{ $('AI Agent').item.json.output }}",
+                    "rightValue": "MANTENIMIENTO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Mantenimiento"
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        656,
+        352
+      ],
+      "id": "7d5f0520-28ab-4bdf-bcc2-611e8067e2fd",
+      "name": "Turnos/Mantenimiento"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "turnos_agendados",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        960,
+        144
+      ],
+      "id": "844aed7b-e79b-4a58-9a6c-a915135c50d6",
+      "name": "Resumen-Turnos disponibles"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Apuntamos al nodo y propiedad del subflujo\nconst texto = $(\"Opciones disponibles\").first().json.data[\"Opción elegida\"] || \"\"; \n\n// 2. REGEX HÍBRIDA: Detecta tanto \"De 08:00 AM a 10:00 AM\" como \"08:00 AM - 10:00 AM\"\nconst m = texto.match(\n  /(\\d{2})\\/(\\d{2})\\/(\\d{4})\\s*\\|\\s*(?:[Dd]e\\s*)?(\\d{1,2}):(\\d{2})\\s*([APap][Mm])\\s*(?:a|-)\\s*(\\d{1,2}):(\\d{2})\\s*([APap][Mm])/\n);\n\nif (!m) {\n  throw new Error(\"No pude interpretar el formato del turno en el texto: \" + texto);\n}\n\n// 3. Desestructuración de variables\nconst [, dd, mm, yyyy, h1, min1, ap1, h2, min2, ap2] = m;\n\n// 4. Conversor limpio a 24 horas\nconst to24 = (h, ap) => {\n  let hrs = parseInt(h, 10);\n  const isPM = ap.toUpperCase() === 'PM';\n  \n  if (isPM && hrs !== 12) hrs += 12;\n  if (!isPM && hrs === 12) hrs = 0;\n  \n  return String(hrs).padStart(2, '0');\n};\n\n// 5. Retorno estructurado con formato ISO nativo para Google Calendar\nreturn [{\n  json: {\n    start: `${yyyy}-${mm}-${dd}T${to24(h1, ap1)}:${min1}:00-03:00`,\n    end:   `${yyyy}-${mm}-${dd}T${to24(h2, ap2)}:${min2}:00-03:00`,\n    turno_confirmado: \"Día \" + dd + \"/\" + mm + \"/\" + yyyy + \" de \" + h1 + \":\" + min1 + \" \" + ap1.toUpperCase() + \" a \" + h2 + \":\" + min2 + \" \" + ap2.toUpperCase()\n  }\n}];\n\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        48
+      ],
+      "id": "aee506cb-eed4-43e1-b009-556070d32428",
+      "name": "Start/End"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar respuesta": {
+      "main": [
+        [
+          {
+            "node": "Audio/Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Cohere": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Consulta a Supabase",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto -> Audio": {
+      "main": [
+        [
+          {
+            "node": "Respuesta al cliente - Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Turnos/Mantenimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta a Supabase": {
+      "ai_tool": [
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Turnero",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Turnero",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turno aprobado": {
+      "main": [
+        [
+          {
+            "node": "Start/End",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turno Aprobado/Desaprobado": {
+      "main": [
+        [
+          {
+            "node": "Turno aprobado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Turno desaprobado - Personal se contacta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmación del turno: Agente": {
+      "main": [
+        [
+          {
+            "node": "Turno Aprobado/Desaprobado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turnos disponibles": {
+      "main": [
+        [
+          {
+            "node": "Opciones disponibles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Opciones disponibles": {
+      "main": [
+        [
+          {
+            "node": "Selección de turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Selección de turno": {
+      "main": [
+        [
+          {
+            "node": "Confirmación del turno: Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turnero": {
+      "main": [
+        [
+          {
+            "node": "Turnos disponibles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turnos disponibles - Calendario": {
+      "main": [
+        [
+          {
+            "node": "Resumen-Turnos disponibles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audio/Texto": {
+      "main": [
+        [
+          {
+            "node": "Respuesta al cliente - Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Texto -> Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Turnos/Mantenimiento": {
+      "main": [
+        [
+          {
+            "node": "Turnos disponibles - Calendario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen-Turnos disponibles": {
+      "main": [
+        [
+          {
+            "node": "Turnero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start/End": {
+      "main": [
+        [
+          {
+            "node": "Turno agregado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "ys8lFNTKdUFZuhGn",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "4b05c46c-8c41-4f92-a34c-702482efd9ea",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff89eec2015540836f3b78f90a98c6694dc9bb20f2f46af5cce248689fc31201"
+  },
+  "nodeGroups": [],
+  "id": "NZGQECtgC3GdhwuF",
+  "tags": []
+}
